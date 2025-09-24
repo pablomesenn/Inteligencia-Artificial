@@ -1,0 +1,21 @@
+{
+  "weights": [
+    0.2873704858356074,
+    0.7242949893168138,
+    0.8098977991861143,
+    0.6960257493192359
+  ],
+  "experiment_info": {
+    "experiment_name": "two_point_30pob_10gen",
+    "crossover_method": "two_point",
+    "best_fitness": 500.0,
+    "total_time": 4.888719797134399,
+    "pop_size": 30,
+    "generations": 10,
+    "mutation_rate": 0.1,
+    "avg_generation_time": 0.48882808685302737,
+    "avg_evaluation_time": 0.4881592273712158
+  },
+  "saved_at": "2025-09-24T14:03:04.152748",
+  "fitness": 500.0
+}

@@ -1,0 +1,21 @@
+{
+  "weights": [
+    -0.12544078180820367,
+    0.32365855360145984,
+    1.2066375630527233,
+    0.9480046783909701
+  ],
+  "experiment_info": {
+    "experiment_name": "single_point_30pob_30gen",
+    "crossover_method": "single_point",
+    "best_fitness": 500.0,
+    "total_time": 14.535248041152954,
+    "pop_size": 30,
+    "generations": 30,
+    "mutation_rate": 0.1,
+    "avg_generation_time": 0.4844663222630819,
+    "avg_evaluation_time": 0.4837738275527954
+  },
+  "saved_at": "2025-09-24T14:03:37.874992",
+  "fitness": 500.0
+}

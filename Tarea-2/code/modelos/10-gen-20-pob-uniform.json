@@ -1,0 +1,21 @@
+{
+  "weights": [
+    -0.4792039101164882,
+    0.9376797760496938,
+    0.4509712679766942,
+    0.9957224342312361
+  ],
+  "experiment_info": {
+    "experiment_name": "uniform_20pob_10gen",
+    "crossover_method": "uniform",
+    "best_fitness": 500.0,
+    "total_time": 4.665065050125122,
+    "pop_size": 20,
+    "generations": 10,
+    "mutation_rate": 0.1,
+    "avg_generation_time": 0.4664448261260986,
+    "avg_evaluation_time": 0.46576950550079343
+  },
+  "saved_at": "2025-09-24T13:53:43.487455",
+  "fitness": 500.0
+}
