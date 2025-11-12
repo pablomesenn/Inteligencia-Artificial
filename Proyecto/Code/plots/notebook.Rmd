@@ -1,0 +1,367 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+library(ggplot2)
+library(gridExtra)
+library(GGally)
+library(corrplot)
+library(dplyr)
+library(tidyr)
+library(viridis)
+library(reshape2)
+
+# Configuración general
+theme_set(theme_minimal(base_size = 11))
+
+# NOTA: Reemplazar 'ckd_data' con el nombre real de tu dataframe
+getwd()  
+setwd("/Users/samircabrera/Development/Universidad/Inteligencia Artificial/Inteligencia-Artificial")  
+ckd_data <- read.csv("Chronic_Kidney_Dsease_data.csv")
+head(datos)
+```
+```{r}
+plot_correlation_matrix <- function(data) {
+  # Seleccionar solo variables numéricas relevantes
+  numeric_vars <- data %>% 
+    select(Age, BMI, SystolicBP, DiastolicBP, FastingBloodSugar, HbA1c,
+           SerumCreatinine, BUNLevels, GFR, ProteinInUrine, ACR,
+           HemoglobinLevels, CholesterolTotal, CholesterolLDL,
+           FatigueLevels, QualityOfLifeScore, MedicationAdherence)
+  
+  cor_matrix <- cor(numeric_vars, use = "complete.obs")
+  
+  corrplot(cor_matrix, 
+           method = "color",
+           type = "upper",
+           order = "hclust",  # Agrupación jerárquica
+           addrect = 4,       # Marca 4 clusters principales
+           tl.col = "black",
+           tl.srt = 45,
+           tl.cex = 0.8,
+           col = colorRampPalette(c("#6D9EC1", "white", "#E46726"))(200),
+           title = "Matriz de Correlación con Clustering Jerárquico",
+           mar = c(0,0,2,0))
+}
+```
+
+
+```{r}
+plot_renal_pairs <- function(data) {
+  renal_data <- data %>%
+    select(GFR, SerumCreatinine, BUNLevels, ProteinInUrine, ACR, Diagnosis) %>%
+    mutate(Diagnosis = factor(Diagnosis, labels = c("No CKD", "CKD")))
+  
+  ggpairs(renal_data,
+          columns = 1:5,
+          aes(color = Diagnosis, alpha = 0.5),
+          upper = list(continuous = wrap("cor", size = 3)),
+          lower = list(continuous = wrap("points", alpha = 0.3, size = 0.5)),
+          diag = list(continuous = wrap("densityDiag", alpha = 0.5)),
+          title = "Relaciones entre Marcadores Renales (por Diagnosis)") +
+    theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+}
+```
+
+```{r}
+plot_gfr_3d <- function(data) {
+  data_plot <- data %>%
+    mutate(Diagnosis = factor(Diagnosis, labels = c("No CKD", "CKD")))
+  
+  ggplot(data_plot, aes(x = SerumCreatinine, y = GFR)) +
+    geom_point(aes(color = Age, size = BMI, shape = Diagnosis), alpha = 0.6) +
+    scale_color_viridis(option = "plasma") +
+    scale_size_continuous(range = c(1, 6)) +
+    geom_smooth(aes(linetype = Diagnosis), method = "loess", se = TRUE, 
+                color = "black", size = 0.8) +
+    labs(title = "GFR vs Creatinina (Edad en color, BMI en tamaño)",
+         x = "Creatinina Sérica (mg/dL)",
+         y = "GFR (mL/min/1.73m²)",
+         caption = "Las líneas muestran tendencias por grupo de diagnóstico") +
+    theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+          legend.position = "right")
+}
+```
+
+```{r}
+plot_clinical_heatmap <- function(data) {
+  # Crear estadios de CKD basados en GFR
+  data_staged <- data %>%
+    mutate(CKD_Stage = case_when(
+      GFR >= 90 ~ "Normal (≥90)",
+      GFR >= 60 ~ "Mild (60-89)",
+      GFR >= 30 ~ "Moderate (30-59)",
+      GFR >= 15 ~ "Severe (15-29)",
+      TRUE ~ "Kidney Failure (<15)"
+    )) %>%
+    mutate(CKD_Stage = factor(CKD_Stage, 
+                              levels = c("Normal (≥90)", "Mild (60-89)", 
+                                         "Moderate (30-59)", "Severe (15-29)", 
+                                         "Kidney Failure (<15)")))
+  
+  # Calcular promedios por estadio
+  heatmap_data <- data_staged %>%
+    group_by(CKD_Stage) %>%
+    summarise(
+      BMI = mean(BMI, na.rm = TRUE),
+      SystolicBP = mean(SystolicBP, na.rm = TRUE),
+      HbA1c = mean(HbA1c, na.rm = TRUE),
+      Creatinine = mean(SerumCreatinine, na.rm = TRUE),
+      Hemoglobin = mean(HemoglobinLevels, na.rm = TRUE),
+      ProteinUrine = mean(ProteinInUrine, na.rm = TRUE),
+      Fatigue = mean(FatigueLevels, na.rm = TRUE),
+      QoL = mean(QualityOfLifeScore, na.rm = TRUE)
+    ) %>%
+    pivot_longer(-CKD_Stage, names_to = "Variable", values_to = "Value") %>%
+    group_by(Variable) %>%
+    mutate(Value_scaled = scale(Value)[,1])  # Estandarizar por variable
+  
+  ggplot(heatmap_data, aes(x = CKD_Stage, y = Variable, fill = Value_scaled)) +
+    geom_tile(color = "white", size = 0.5) +
+    geom_text(aes(label = round(Value, 1)), size = 3, color = "white") +
+    scale_fill_gradient2(low = "#3B9AB2", mid = "#EBCC2A", high = "#F21A00",
+                         midpoint = 0, name = "Z-score") +
+    labs(title = "Perfil Clínico Promedio por Estadio de CKD",
+         x = "Estadio de Enfermedad Renal",
+         y = "Variable Clínica",
+         caption = "Valores estandarizados (Z-scores) - números = valor real promedio") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          plot.title = element_text(hjust = 0.5, face = "bold"))
+}
+```
+
+```{r}
+plot_parallel_coordinates <- function(data) {
+  parallel_data <- data %>%
+    select(PatientID, BMI, PhysicalActivity, DietQuality, SleepQuality,
+           AlcoholConsumption, Smoking, Diagnosis) %>%
+    mutate(Diagnosis = factor(Diagnosis, labels = c("No CKD", "CKD"))) %>%
+    # Estandarizar variables para escala común
+    mutate(across(c(BMI, PhysicalActivity, DietQuality, SleepQuality, 
+                    AlcoholConsumption), scale)) %>%
+    sample_n(200)  # Muestra para claridad visual
+  
+  parallel_long <- parallel_data %>%
+    pivot_longer(cols = c(BMI, PhysicalActivity, DietQuality, 
+                          SleepQuality, AlcoholConsumption),
+                 names_to = "Variable", values_to = "Value") %>%
+    mutate(Variable = factor(Variable, 
+                             levels = c("BMI", "PhysicalActivity", "DietQuality",
+                                        "SleepQuality", "AlcoholConsumption")))
+  
+  ggplot(parallel_long, aes(x = Variable, y = Value, group = PatientID)) +
+    geom_line(aes(color = Diagnosis), alpha = 0.3, size = 0.5) +
+    geom_point(aes(color = Diagnosis), alpha = 0.4, size = 1) +
+    scale_color_manual(values = c("No CKD" = "#00BA38", "CKD" = "#F8766D")) +
+    labs(title = "Perfiles de Estilo de Vida (Parallel Coordinates)",
+         subtitle = "Muestra de 200 pacientes - Variables estandarizadas",
+         y = "Valor Estandarizado (Z-score)",
+         x = "") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          plot.title = element_text(hjust = 0.5, face = "bold"),
+          plot.subtitle = element_text(hjust = 0.5))
+}
+```
+
+```{r}
+plot_demographic_boxplots <- function(data) {
+  data_demo <- data %>%
+    mutate(
+      Gender = factor(Gender, labels = c("Male", "Female")),
+      Ethnicity = factor(Ethnicity, labels = c("Caucasian", "African American", 
+                                               "Asian", "Other")),
+      SocioeconomicStatus = factor(SocioeconomicStatus, 
+                                   labels = c("Low", "Middle", "High"))
+    ) %>%
+    select(Gender, Ethnicity, SocioeconomicStatus, GFR, HbA1c, 
+           SystolicBP, QualityOfLifeScore) %>%
+    pivot_longer(cols = c(GFR, HbA1c, SystolicBP, QualityOfLifeScore),
+                 names_to = "Biomarker", values_to = "Value")
+  
+  ggplot(data_demo, aes(x = SocioeconomicStatus, y = Value, fill = Gender)) +
+    geom_boxplot(alpha = 0.7, outlier.size = 0.5) +
+    facet_grid(Biomarker ~ Ethnicity, scales = "free_y") +
+    scale_fill_brewer(palette = "Set2") +
+    labs(title = "Biomarcadores por Demografía (Género, Etnicidad, Estatus Socioeconómico)",
+         x = "Estatus Socioeconómico",
+         y = "Valor del Biomarcador") +
+    theme(strip.text = element_text(face = "bold", size = 8),
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          plot.title = element_text(hjust = 0.5, face = "bold", size = 11))
+}
+```
+
+```{r}
+plot_qol_bubble <- function(data) {
+  bubble_data <- data %>%
+    mutate(
+      Severity_Score = (SerumCreatinine - min(SerumCreatinine)) / 
+        (max(SerumCreatinine) - min(SerumCreatinine)) * 10,
+      Diagnosis = factor(Diagnosis, labels = c("No CKD", "CKD"))
+    )
+  
+  ggplot(bubble_data, aes(x = FatigueLevels, y = QualityOfLifeScore)) +
+    geom_point(aes(size = Severity_Score, color = GFR, shape = Diagnosis), 
+               alpha = 0.6) +
+    scale_color_viridis(option = "magma", direction = -1, 
+                        name = "GFR\n(mL/min/1.73m²)") +
+    scale_size_continuous(range = c(1, 10), 
+                          name = "Severidad\n(Creatinina)") +
+    geom_smooth(aes(color = NULL, size = NULL), method = "lm", 
+                se = TRUE, color = "black", linetype = "dashed") +
+    labs(title = "Calidad de Vida vs Fatiga (tamaño = Severidad, color = GFR)",
+         x = "Nivel de Fatiga (0-10)",
+         y = "Score de Calidad de Vida (0-100)") +
+    theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+          legend.position = "right")
+}
+```
+
+```{r}
+plot_medication_violins <- function(data) {
+  med_data <- data %>%
+    mutate(
+      Treatment_Intensity = ACEInhibitors + Diuretics + Statins + 
+        AntidiabeticMedications,
+      Treatment_Group = case_when(
+        Treatment_Intensity == 0 ~ "No Meds",
+        Treatment_Intensity <= 2 ~ "Low (1-2)",
+        TRUE ~ "High (3-4)"
+      ),
+      Treatment_Group = factor(Treatment_Group, 
+                               levels = c("No Meds", "Low (1-2)", "High (3-4)"))
+    ) %>%
+    select(Treatment_Group, GFR, HbA1c, SystolicBP, QualityOfLifeScore) %>%
+    pivot_longer(cols = c(GFR, HbA1c, SystolicBP, QualityOfLifeScore),
+                 names_to = "Outcome", values_to = "Value")
+  
+  ggplot(med_data, aes(x = Treatment_Group, y = Value, fill = Treatment_Group)) +
+    geom_violin(alpha = 0.7, trim = FALSE) +
+    geom_boxplot(width = 0.2, alpha = 0.8, outlier.size = 0.5) +
+    facet_wrap(~ Outcome, scales = "free_y", ncol = 2) +
+    scale_fill_brewer(palette = "YlOrRd") +
+    labs(title = "Distribución de Outcomes Clínicos por Intensidad de Tratamiento",
+         subtitle = "Intensidad = suma de medicamentos clave (ACEi, Diurético, Estatina, Antidiabético)",
+         x = "Grupo de Tratamiento",
+         y = "Valor del Outcome",
+         fill = "Intensidad") +
+    theme(strip.text = element_text(face = "bold"),
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          plot.title = element_text(hjust = 0.5, face = "bold"),
+          plot.subtitle = element_text(hjust = 0.5, size = 9))
+}
+```
+
+```{r}
+plot_density_contour <- function(data) {
+  data_contour <- data %>%
+    mutate(Diagnosis = factor(Diagnosis, labels = c("No CKD", "CKD")))
+  
+  ggplot(data_contour, aes(x = HbA1c, y = GFR)) +
+    stat_density_2d(aes(fill = after_stat(level)), geom = "polygon", alpha = 0.5) +
+    geom_point(aes(color = Diagnosis), alpha = 0.3, size = 1) +
+    scale_fill_viridis(option = "cividis", name = "Densidad") +
+    scale_color_manual(values = c("No CKD" = "#00BA38", "CKD" = "#F8766D")) +
+    geom_hline(yintercept = 60, linetype = "dashed", color = "red", size = 0.8) +
+    annotate("text", x = 9, y = 65, label = "GFR = 60 (umbral CKD)", 
+             color = "red", size = 3) +
+    labs(title = "Contorno de Densidad: GFR vs HbA1c",
+         subtitle = "Identificación de clusters de riesgo metabólico-renal",
+         x = "HbA1c (%)",
+         y = "GFR (mL/min/1.73m²)") +
+    theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+          plot.subtitle = element_text(hjust = 0.5))
+}
+```
+
+```{r}
+plot_age_ridges <- function(data) {
+  library(ggridges)
+  
+  ridge_data <- data %>%
+    mutate(
+      Comorbidity_Profile = case_when(
+        FamilyHistoryDiabetes == 1 & FamilyHistoryHypertension == 1 ~ 
+          "Diabetes + HTN",
+        FamilyHistoryDiabetes == 1 ~ "Diabetes Only",
+        FamilyHistoryHypertension == 1 ~ "HTN Only",
+        FamilyHistoryKidneyDisease == 1 ~ "Kidney Disease",
+        TRUE ~ "None"
+      )
+    ) %>%
+    filter(Comorbidity_Profile != "None")
+  
+  ggplot(ridge_data, aes(x = Age, y = Comorbidity_Profile, fill = Comorbidity_Profile)) +
+    geom_density_ridges(alpha = 0.7, scale = 1.5) +
+    scale_fill_viridis(discrete = TRUE, option = "turbo") +
+    labs(title = "Distribución de Edad según Historia Familiar de Comorbilidades",
+         x = "Edad (años)",
+         y = "Perfil de Comorbilidad Familiar") +
+    theme_ridges() +
+    theme(legend.position = "none",
+          plot.title = element_text(hjust = 0.5, face = "bold"))
+}
+```
+
+```{r}
+generate_all_plots <- function(data) {
+  # Crear lista para almacenar plots
+  plots <- list()
+  
+  cat("Generando visualizaciones multivariables...\n\n")
+  
+  cat("1. Matriz de Correlación con Clustering...\n")
+  plot_correlation_matrix(data)
+  
+  cat("2. Pairplot de Variables Renales...\n")
+  plots$renal_pairs <- plot_renal_pairs(data)
+  print(plots$renal_pairs)
+  
+  cat("3. Scatterplot 4D (GFR-Creatinina-Edad-BMI)...\n")
+  plots$gfr_3d <- plot_gfr_3d(data)
+  print(plots$gfr_3d)
+  
+  cat("4. Heatmap de Perfiles Clínicos...\n")
+  plots$heatmap <- plot_clinical_heatmap(data)
+  print(plots$heatmap)
+  
+  cat("5. Parallel Coordinates (Factores de Riesgo)...\n")
+  plots$parallel <- plot_parallel_coordinates(data)
+  print(plots$parallel)
+  
+  cat("6. Boxplots Demográficos Facetados...\n")
+  plots$demo_box <- plot_demographic_boxplots(data)
+  print(plots$demo_box)
+  
+  cat("7. Bubble Chart (Calidad de Vida)...\n")
+  plots$bubble <- plot_qol_bubble(data)
+  print(plots$bubble)
+  
+  cat("8. Violin Plots (Medicamentos)...\n")
+  plots$violins <- plot_medication_violins(data)
+  print(plots$violins)
+  
+  cat("9. Contour Plot (Densidad GFR-HbA1c)...\n")
+  plots$contour <- plot_density_contour(data)
+  print(plots$contour)
+  
+  cat("10. Ridge Plot (Edad por Comorbilidades)...\n")
+  plots$ridges <- plot_age_ridges(data)
+  print(plots$ridges)
+  
+  cat("\n¡Todas las visualizaciones generadas exitosamente!\n")
+  
+  return(invisible(plots))
+}
+
+```
+
+```{r}
+plots <- generate_all_plots(ckd_data)
+```
+
+
+
