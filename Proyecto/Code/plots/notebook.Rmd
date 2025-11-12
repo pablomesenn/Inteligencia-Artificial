@@ -20,7 +20,7 @@ theme_set(theme_minimal(base_size = 11))
 # NOTA: Reemplazar 'ckd_data' con el nombre real de tu dataframe
 getwd()  
 setwd("/Users/samircabrera/Development/Universidad/Inteligencia Artificial/Inteligencia-Artificial")  
-ckd_data <- read.csv("Chronic_Kidney_Dsease_data.csv")
+ckd_data <- read.csv("/Users/samircabrera/Development/Universidad/Inteligencia Artificial/Inteligencia-Artificial/Proyecto/Dataset/Chronic_Kidney_Dsease_data.csv")
 head(datos)
 ```
 ```{r}
@@ -305,6 +305,49 @@ plot_age_ridges <- function(data) {
           plot.title = element_text(hjust = 0.5, face = "bold"))
 }
 ```
+```{r}
+
+
+```
+
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+```
+
+
+
 
 ```{r}
 generate_all_plots <- function(data) {
@@ -362,6 +405,5 @@ generate_all_plots <- function(data) {
 ```{r}
 plots <- generate_all_plots(ckd_data)
 ```
-
 
 
